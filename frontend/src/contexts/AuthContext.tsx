@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { authService } from '@/services/api';
+import { LoginRequest } from '@/config/api';
 
 interface User {
   id: string;
@@ -48,69 +50,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Simulated API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock validation
       if (!email || !password) {
-        return { success: false, error: 'Email and password are required' };
-      }
-      
-      if (password.length < 6) {
-        return { success: false, error: 'Invalid credentials' };
+        return { success: false, error: 'Email et mot de passe requis' };
       }
 
-      const mockToken = 'jwt_' + Math.random().toString(36).substring(7);
-      const mockUser: User = {
-        id: '1',
-        email,
-        name: email.split('@')[0],
+      const response = await authService.login({ email, password });
+      
+      const user: User = {
+        id: response.email, // Utiliser l'email comme ID temporaire
+        email: response.email,
+        name: response.fullName,
       };
 
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setToken(mockToken);
-      setUser(mockUser);
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setToken(response.token);
+      setUser(user);
 
       return { success: true };
-    } catch {
-      return { success: false, error: 'An error occurred during login' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de la connexion';
+      return { success: false, error: errorMessage };
     }
   };
 
   const signup = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Simulated API call - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock validation
-      if (!email || !password || !name) {
-        return { success: false, error: 'All fields are required' };
-      }
-      
-      if (password.length < 6) {
-        return { success: false, error: 'Password must be at least 6 characters' };
-      }
-
-      if (!email.includes('@')) {
-        return { success: false, error: 'Invalid email format' };
-      }
-
-      const mockToken = 'jwt_' + Math.random().toString(36).substring(7);
-      const mockUser: User = {
-        id: Math.random().toString(36).substring(7),
-        email,
-        name,
+      // Note: Le backend ne supporte pas encore l'inscription
+      // Pour l'instant, on retourne une erreur
+      // Vous pouvez utiliser les utilisateurs de démonstration:
+      // user@example.com / password123
+      // alice@example.com / alice123
+      return { 
+        success: false, 
+        error: 'L\'inscription n\'est pas encore disponible. Utilisez les comptes de démonstration: user@example.com / password123' 
       };
-
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setToken(mockToken);
-      setUser(mockUser);
-
-      return { success: true };
-    } catch {
-      return { success: false, error: 'An error occurred during signup' };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'inscription';
+      return { success: false, error: errorMessage };
     }
   };
 

@@ -31,18 +31,24 @@ const CreateProject: React.FC = () => {
 
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      await addProject(title.trim(), description.trim());
+      
+      toast({
+        title: 'Project created!',
+        description: 'Your new project has been created successfully.',
+      });
 
-    addProject(title.trim(), description.trim());
-
-    toast({
-      title: 'Project created!',
-      description: 'Your new project has been created successfully.',
-    });
-
-    setIsLoading(false);
-    navigate('/dashboard/projects');
+      navigate('/dashboard/projects');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create project',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -48,8 +48,9 @@ const ProjectDetails: React.FC = () => {
   const [taskDescription, setTaskDescription] = useState('');
   const [taskDueDate, setTaskDueDate] = useState('');
 
-  const project = getProject(id || '');
-  const progress = getProjectProgress(id || '');
+  const projectId = id ? parseInt(id, 10) : null;
+  const project = projectId ? getProject(projectId) : undefined;
+  const progress = projectId ? getProjectProgress(projectId) : { total: 0, completed: 0, percentage: 0 };
 
   if (!project) {
     return (
@@ -84,26 +85,46 @@ const ProjectDetails: React.FC = () => {
       return;
     }
 
-    addTask(project.id, taskTitle.trim(), taskDescription.trim(), taskDueDate);
-    
-    toast({
-      title: 'Task added!',
-      description: 'Your new task has been created.',
-    });
-
-    setTaskTitle('');
-    setTaskDescription('');
-    setTaskDueDate('');
-    setIsTaskDialogOpen(false);
+    if (project) {
+      addTask(project.id, taskTitle.trim(), taskDescription.trim(), taskDueDate)
+        .then(() => {
+          toast({
+            title: 'Task added!',
+            description: 'Your new task has been created.',
+          });
+          setTaskTitle('');
+          setTaskDescription('');
+          setTaskDueDate('');
+          setIsTaskDialogOpen(false);
+        })
+        .catch((error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message || 'Failed to create task',
+          });
+        });
+    }
   };
 
   const handleDeleteProject = () => {
-    deleteProject(project.id);
-    toast({
-      title: 'Project deleted',
-      description: 'The project has been permanently deleted.',
-    });
-    navigate('/dashboard/projects');
+    if (project) {
+      deleteProject(project.id)
+        .then(() => {
+          toast({
+            title: 'Project deleted',
+            description: 'The project has been permanently deleted.',
+          });
+          navigate('/dashboard/projects');
+        })
+        .catch((error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message || 'Failed to delete project',
+          });
+        });
+    }
   };
 
   const completedTasks = project.tasks.filter(t => t.completed);

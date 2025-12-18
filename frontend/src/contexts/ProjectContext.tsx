@@ -1,32 +1,43 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { projectService, taskService } from '@/services/api';
+import { ProjectResponse, TaskResponse } from '@/config/api';
 
 export interface Task {
-  id: string;
+  id: number;
   title: string;
   description: string;
   dueDate: string;
   completed: boolean;
   createdAt: string;
+  projectId: number;
 }
 
 export interface Project {
-  id: string;
+  id: number;
   title: string;
   description: string;
   tasks: Task[];
   createdAt: string;
+  totalTasks: number;
+  completedTasks: number;
+  progressPercentage: number;
 }
 
 interface ProjectContextType {
   projects: Project[];
-  addProject: (title: string, description: string) => void;
-  deleteProject: (id: string) => void;
-  getProject: (id: string) => Project | undefined;
-  addTask: (projectId: string, title: string, description: string, dueDate: string) => void;
-  toggleTask: (projectId: string, taskId: string) => void;
-  deleteTask: (projectId: string, taskId: string) => void;
-  getProjectProgress: (projectId: string) => { total: number; completed: number; percentage: number };
+  isLoading: boolean;
+  error: string | null;
+  addProject: (title: string, description: string) => Promise<void>;
+  deleteProject: (id: number) => Promise<void>;
+  getProject: (id: number) => Project | undefined;
+  updateProject: (id: number, title: string, description: string) => Promise<void>;
+  addTask: (projectId: number, title: string, description: string, dueDate: string) => Promise<void>;
+  toggleTask: (projectId: number, taskId: number) => Promise<void>;
+  deleteTask: (projectId: number, taskId: number) => Promise<void>;
+  updateTask: (projectId: number, taskId: number, title: string, description: string, dueDate: string) => Promise<void>;
+  getProjectProgress: (projectId: number) => { total: number; completed: number; percentage: number };
   getTotalStats: () => { totalProjects: number; totalTasks: number; completedTasks: number };
+  refreshProjects: () => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -43,114 +54,233 @@ interface ProjectProviderProps {
   children: ReactNode;
 }
 
-const initialProjects: Project[] = [
-  {
-    id: '1',
-    title: 'Website Redesign',
-    description: 'Complete overhaul of the company website with modern design',
-    tasks: [
-      { id: '1', title: 'Design mockups', description: 'Create initial design concepts', dueDate: '2024-02-15', completed: true, createdAt: '2024-01-01' },
-      { id: '2', title: 'Frontend development', description: 'Implement the new design', dueDate: '2024-03-01', completed: true, createdAt: '2024-01-05' },
-      { id: '3', title: 'Testing', description: 'QA testing and bug fixes', dueDate: '2024-03-15', completed: false, createdAt: '2024-01-10' },
-    ],
-    createdAt: '2024-01-01',
-  },
-  {
-    id: '2',
-    title: 'Mobile App Development',
-    description: 'Build a cross-platform mobile application',
-    tasks: [
-      { id: '1', title: 'Requirements gathering', description: 'Collect all requirements', dueDate: '2024-02-01', completed: true, createdAt: '2024-01-15' },
-      { id: '2', title: 'UI/UX Design', description: 'Design the mobile interface', dueDate: '2024-02-20', completed: false, createdAt: '2024-01-20' },
-      { id: '3', title: 'API Integration', description: 'Connect to backend services', dueDate: '2024-03-10', completed: false, createdAt: '2024-01-25' },
-      { id: '4', title: 'App Store submission', description: 'Prepare and submit to stores', dueDate: '2024-04-01', completed: false, createdAt: '2024-01-30' },
-    ],
-    createdAt: '2024-01-15',
-  },
-  {
-    id: '3',
-    title: 'Marketing Campaign',
-    description: 'Q1 digital marketing campaign',
-    tasks: [
-      { id: '1', title: 'Strategy planning', description: 'Define campaign goals and KPIs', dueDate: '2024-01-20', completed: true, createdAt: '2024-01-10' },
-      { id: '2', title: 'Content creation', description: 'Create marketing materials', dueDate: '2024-02-05', completed: true, createdAt: '2024-01-12' },
-    ],
-    createdAt: '2024-01-10',
-  },
-];
-
 export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) => {
-  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const addProject = (title: string, description: string) => {
-    const newProject: Project = {
-      id: Date.now().toString(),
-      title,
-      description,
-      tasks: [],
-      createdAt: new Date().toISOString(),
-    };
-    setProjects(prev => [...prev, newProject]);
+  // Fonction pour charger les projets et leurs tâches
+  const loadProjects = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Charger tous les projets
+      const projectsData = await projectService.getAll();
+      
+      // Charger les tâches pour chaque projet
+      const projectsWithTasks = await Promise.all(
+        projectsData.map(async (project: ProjectResponse) => {
+          try {
+            const tasks = await taskService.getAllByProject(project.id);
+            return {
+              ...project,
+              tasks: tasks.map((task: TaskResponse) => ({
+                id: task.id,
+                title: task.title,
+                description: task.description || '',
+                dueDate: task.dueDate,
+                completed: task.completed,
+                createdAt: task.createdAt,
+                projectId: task.projectId,
+              })),
+            };
+          } catch (err) {
+            console.error(`Erreur lors du chargement des tâches pour le projet ${project.id}:`, err);
+            return {
+              ...project,
+              tasks: [],
+            };
+          }
+        })
+      );
+      
+      setProjects(projectsWithTasks);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des projets';
+      setError(errorMessage);
+      console.error('Erreur lors du chargement des projets:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const deleteProject = (id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
+  // Charger les projets au montage du composant
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const addProject = async (title: string, description: string) => {
+    try {
+      setError(null);
+      const newProject = await projectService.create({ title, description: description || '' });
+      
+      // Ajouter le projet avec une liste de tâches vide
+      const projectWithTasks: Project = {
+        ...newProject,
+        tasks: [],
+      };
+      
+      setProjects(prev => [...prev, projectWithTasks]);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création du projet';
+      setError(errorMessage);
+      throw err;
+    }
   };
 
-  const getProject = (id: string) => {
+  const deleteProject = async (id: number) => {
+    try {
+      setError(null);
+      await projectService.delete(id);
+      setProjects(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression du projet';
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  const updateProject = async (id: number, title: string, description: string) => {
+    try {
+      setError(null);
+      const updatedProject = await projectService.update(id, { title, description: description || '' });
+      
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === id
+            ? { ...project, title: updatedProject.title, description: updatedProject.description || '' }
+            : project
+        )
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour du projet';
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  const getProject = (id: number) => {
     return projects.find(p => p.id === id);
   };
 
-  const addTask = (projectId: string, title: string, description: string, dueDate: string) => {
-    setProjects(prev =>
-      prev.map(project => {
-        if (project.id === projectId) {
-          const newTask: Task = {
-            id: Date.now().toString(),
-            title,
-            description,
-            dueDate,
-            completed: false,
-            createdAt: new Date().toISOString(),
-          };
-          return { ...project, tasks: [...project.tasks, newTask] };
-        }
-        return project;
-      })
-    );
+  const addTask = async (projectId: number, title: string, description: string, dueDate: string) => {
+    try {
+      setError(null);
+      const newTask = await taskService.create(projectId, {
+        title,
+        description: description || '',
+        dueDate,
+      });
+      
+      const task: Task = {
+        id: newTask.id,
+        title: newTask.title,
+        description: newTask.description || '',
+        dueDate: newTask.dueDate,
+        completed: newTask.completed,
+        createdAt: newTask.createdAt,
+        projectId: newTask.projectId,
+      };
+      
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === projectId
+            ? { ...project, tasks: [...project.tasks, task] }
+            : project
+        )
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la création de la tâche';
+      setError(errorMessage);
+      throw err;
+    }
   };
 
-  const toggleTask = (projectId: string, taskId: string) => {
-    setProjects(prev =>
-      prev.map(project => {
-        if (project.id === projectId) {
-          return {
-            ...project,
-            tasks: project.tasks.map(task =>
-              task.id === taskId ? { ...task, completed: !task.completed } : task
-            ),
-          };
-        }
-        return project;
-      })
-    );
+  const toggleTask = async (projectId: number, taskId: number) => {
+    try {
+      setError(null);
+      const updatedTask = await taskService.toggle(projectId, taskId);
+      
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === projectId
+            ? {
+                ...project,
+                tasks: project.tasks.map(task =>
+                  task.id === taskId
+                    ? { ...task, completed: updatedTask.completed }
+                    : task
+                ),
+              }
+            : project
+        )
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la tâche';
+      setError(errorMessage);
+      throw err;
+    }
   };
 
-  const deleteTask = (projectId: string, taskId: string) => {
-    setProjects(prev =>
-      prev.map(project => {
-        if (project.id === projectId) {
-          return {
-            ...project,
-            tasks: project.tasks.filter(task => task.id !== taskId),
-          };
-        }
-        return project;
-      })
-    );
+  const updateTask = async (projectId: number, taskId: number, title: string, description: string, dueDate: string) => {
+    try {
+      setError(null);
+      const updatedTask = await taskService.update(projectId, taskId, {
+        title,
+        description: description || '',
+        dueDate,
+      });
+      
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === projectId
+            ? {
+                ...project,
+                tasks: project.tasks.map(task =>
+                  task.id === taskId
+                    ? {
+                        ...task,
+                        title: updatedTask.title,
+                        description: updatedTask.description || '',
+                        dueDate: updatedTask.dueDate,
+                      }
+                    : task
+                ),
+              }
+            : project
+        )
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la tâche';
+      setError(errorMessage);
+      throw err;
+    }
   };
 
-  const getProjectProgress = (projectId: string) => {
+  const deleteTask = async (projectId: number, taskId: number) => {
+    try {
+      setError(null);
+      await taskService.delete(projectId, taskId);
+      
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === projectId
+            ? {
+                ...project,
+                tasks: project.tasks.filter(task => task.id !== taskId),
+              }
+            : project
+        )
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de la tâche';
+      setError(errorMessage);
+      throw err;
+    }
+  };
+
+  const getProjectProgress = (projectId: number) => {
     const project = projects.find(p => p.id === projectId);
     if (!project) return { total: 0, completed: 0, percentage: 0 };
     
@@ -171,14 +301,19 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
   const value = {
     projects,
+    isLoading,
+    error,
     addProject,
     deleteProject,
     getProject,
+    updateProject,
     addTask,
     toggleTask,
     deleteTask,
+    updateTask,
     getProjectProgress,
     getTotalStats,
+    refreshProjects: loadProjects,
   };
 
   return <ProjectContext.Provider value={value}>{children}</ProjectContext.Provider>;
