@@ -1,4 +1,4 @@
-import { API_BASE_URL, LoginRequest, LoginResponse, ProjectRequest, ProjectResponse, TaskRequest, TaskResponse } from '@/config/api';
+import { API_BASE_URL, LoginRequest, LoginResponse, RegisterRequest, ProjectRequest, ProjectResponse, TaskRequest, TaskResponse } from '@/config/api';
 
 // Fonction utilitaire pour obtenir le token depuis localStorage
 const getToken = (): string | null => {
@@ -11,7 +11,7 @@ const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const token = getToken();
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -37,7 +37,7 @@ const apiRequest = async <T>(
 
   if (!response.ok) {
     let errorMessage = `Erreur ${response.status}: ${response.statusText}`;
-    
+
     try {
       const errorData = await response.json();
       // Gérer différents formats de réponse d'erreur
@@ -64,7 +64,7 @@ const apiRequest = async <T>(
         errorMessage = 'Erreur serveur. Vérifiez que le backend est démarré.';
       }
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -82,6 +82,13 @@ export const authService = {
     return apiRequest<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
+    });
+  },
+
+  register: async (data: RegisterRequest): Promise<LoginResponse> => {
+    return apiRequest<LoginResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 };

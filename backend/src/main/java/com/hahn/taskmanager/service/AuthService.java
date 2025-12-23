@@ -17,39 +17,57 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService implements UserDetailsService {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
-    private final AuthenticationManager authenticationManager;
+        private final UserRepository userRepository;
+        private final PasswordEncoder passwordEncoder;
+        private final JwtService jwtService;
+        private final AuthenticationManager authenticationManager;
 
-    @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        @Override
+        public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+                User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail())
-                .password(user.getPassword())
-                .roles("USER")
-                .build();
-    }
+                return org.springframework.security.core.userdetails.User.builder()
+                                .username(user.getEmail())
+                                .password(user.getPassword())
+                                .roles("USER")
+                                .build();
+        }
 
-    public LoginResponse authenticate(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        public LoginResponse authenticate(LoginRequest request) {
+                authenticationManager.authenticate(
+                                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                User user = userRepository.findByEmail(request.getEmail())
+                                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        UserDetails userDetails = loadUserByUsername(request.getEmail());
-        String jwtToken = jwtService.generateToken(userDetails);
+                UserDetails userDetails = loadUserByUsername(request.getEmail());
+                String jwtToken = jwtService.generateToken(userDetails);
 
-        return new LoginResponse(jwtToken, user.getEmail(), user.getFullName());
-    }
+                return new LoginResponse(jwtToken, user.getEmail(), user.getFullName());
+        }
 
-    public User getCurrentUser(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-    }
+        public LoginResponse register(com.hahn.taskmanager.dto.RegisterRequest request) {
+                if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+                        throw new RuntimeException("Email already exists");
+                }
+
+                User user = User.builder()
+                                .fullName(request.getFullName())
+                                .email(request.getEmail())
+                                .password(passwordEncoder.encode(request.getPassword()))
+                                .build();
+
+                userRepository.save(user);
+
+                UserDetails userDetails = loadUserByUsername(user.getEmail());
+                String jwtToken = jwtService.generateToken(userDetails);
+
+                return new LoginResponse(jwtToken, user.getEmail(), user.getFullName());
+        }
+
+        public User getCurrentUser(String email) {
+                return userRepository.findByEmail(email)
+                                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        }
 }

@@ -13,6 +13,12 @@ export interface LoginResponse {
   fullName: string;
 }
 
+export interface RegisterRequest {
+  fullName: string;
+  email: string;
+  password: string;
+}
+
 export interface ProjectRequest {
   title: string;
   description?: string;

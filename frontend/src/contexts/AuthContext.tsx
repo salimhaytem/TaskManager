@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
-    
+
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const response = await authService.login({ email, password });
-      
+
       const user: User = {
         id: response.email, // Utiliser l'email comme ID temporaire
         email: response.email,
@@ -76,15 +76,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signup = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Note: Le backend ne supporte pas encore l'inscription
-      // Pour l'instant, on retourne une erreur
-      // Vous pouvez utiliser les utilisateurs de démonstration:
-      // user@example.com / password123
-      // alice@example.com / alice123
-      return { 
-        success: false, 
-        error: 'L\'inscription n\'est pas encore disponible. Utilisez les comptes de démonstration: user@example.com / password123' 
+      const response = await authService.register({ email, password, fullName: name });
+
+      const user: User = {
+        id: response.email,
+        email: response.email,
+        name: response.fullName,
       };
+
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setToken(response.token);
+      setUser(user);
+
+      return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'inscription';
       return { success: false, error: errorMessage };

@@ -2,6 +2,7 @@ package com.hahn.taskmanager.controller;
 
 import com.hahn.taskmanager.dto.LoginRequest;
 import com.hahn.taskmanager.dto.LoginResponse;
+import com.hahn.taskmanager.dto.RegisterRequest;
 import com.hahn.taskmanager.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.authenticate(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<LoginResponse> register(@Valid @RequestBody RegisterRequest request) {
+        LoginResponse response = authService.register(request);
         return ResponseEntity.ok(response);
     }
 }

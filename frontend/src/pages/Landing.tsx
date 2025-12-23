@@ -92,7 +92,6 @@ const Landing: React.FC = () => {
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-primary-foreground leading-tight mb-6 animate-slide-up">
               Manage Your Projects.
-              <span className="block text-gradient mt-2">Track Your Tasks.</span>
               <span className="block mt-2">Stay Productive.</span>
             </h1>
             

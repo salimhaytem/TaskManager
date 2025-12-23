@@ -26,7 +26,9 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggle, onDelete }) => {
     >
       <button
         onClick={onToggle}
-        className="mt-0.5 flex-shrink-0 transition-transform hover:scale-110"
+        className="mt-0.5 flex-shrink-0 transition-transform hover:scale-110 p-1"
+        aria-label={task.completed ? 'Marquer non fait' : 'Marquer comme fait'}
+        title={task.completed ? 'Marquer non fait' : 'Marquer comme fait'}
       >
         {task.completed ? (
           <CheckCircle2 className="h-5 w-5 text-success" />
@@ -77,6 +79,15 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggle, onDelete }) => {
         }}
       >
         <Trash2 className="h-4 w-4" />
+      </Button>
+
+      <Button
+        variant="default"
+        size="sm"
+        className="ml-2"
+        onClick={onToggle}
+      >
+        {task.completed ? 'Mark as Undone' : 'Mark as Done'}
       </Button>
     </div>
   );

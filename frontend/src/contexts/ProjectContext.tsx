@@ -73,6 +73,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         projectsData.map(async (project: ProjectResponse) => {
           try {
             const tasks = await taskService.getAllByProject(project.id);
+            console.log('Tâches chargées depuis l\'API:', tasks);
             return {
               ...project,
               tasks: tasks.map((task: TaskResponse) => ({
@@ -200,8 +201,28 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
   const toggleTask = async (projectId: number, taskId: number) => {
     try {
       setError(null);
+      console.log(`Toggling task: Project ID=${projectId}, Task ID=${taskId}`);
+      // Mise à jour optimiste: basculer immédiatement l'état local pour une réponse visuelle instantanée
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === projectId
+            ? {
+                ...project,
+                tasks: project.tasks.map(task =>
+                  task.id === taskId
+                    ? { ...task, completed: true }
+                    : task
+                ),
+              }
+            : project
+        )
+      );
+
+      // Appel API pour confirmer la modification côté serveur
       const updatedTask = await taskService.toggle(projectId, taskId);
-      
+      console.log('Updated task from server:', updatedTask);
+
+      // Harmoniser l'état avec la réponse serveur (au cas où)
       setProjects(prev =>
         prev.map(project =>
           project.id === projectId
@@ -217,6 +238,22 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         )
       );
     } catch (err) {
+      // En cas d'erreur, revenir à l'état précédent en inversant de nouveau
+      setProjects(prev =>
+        prev.map(project =>
+          project.id === projectId
+            ? {
+                ...project,
+                tasks: project.tasks.map(task =>
+                  task.id === taskId
+                    ? { ...task, completed: true }
+                    : task
+                ),
+              }
+            : project
+        )
+      );
+
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la tâche';
       setError(errorMessage);
       throw err;
